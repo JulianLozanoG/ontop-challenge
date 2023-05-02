@@ -1,20 +1,19 @@
 package service;
 
-import model.Transaction;
+import dto.TransactionDto;
+import exception.InsufficientBalanceException;
+import model.transaction.Transaction;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
+import javax.security.auth.login.AccountNotFoundException;
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TransactionService {
 
-    Transaction createTransaction(Transaction transaction);
-
-    List<Transaction> getTransactionsByAccountId(String accountId, BigDecimal amountFrom, BigDecimal amountTo,
-                                                 LocalDate dateFrom, LocalDate dateTo, Pageable pageable);
-
-    List<Transaction> getTransactionsByAmountAndDate(BigDecimal amountFrom, BigDecimal amountTo,
-                                                     LocalDate dateFrom, LocalDate dateTo, Pageable pageable);
+    Transaction createTransaction(TransactionDto transactionDto) throws InsufficientBalanceException, AccountNotFoundException;
+    Transaction withdrawMoney(String accountId, BigDecimal amount);
+    List<Transaction> getTransactions(String accountId, BigDecimal minAmount, BigDecimal maxAmount,
+                                      LocalDateTime startDate, LocalDateTime endDate, int page, int size);
 }

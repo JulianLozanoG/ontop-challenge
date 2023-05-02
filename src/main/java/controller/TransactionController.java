@@ -1,15 +1,21 @@
 package controller;
 
-import model.Transaction;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpStatus;
+import dto.TransactionDto;
+import jakarta.validation.Valid;
+import mapper.TransactionMapper;
+import model.transaction.Transaction;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import service.AccountService;
 import service.TransactionService;
+
+import javax.security.auth.login.AccountNotFoundException;
+import java.math.BigDecimal;
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 
 @RestController
@@ -17,27 +23,36 @@ import service.TransactionService;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final AccountService accountService;
 
-    @Autowired
-    public TransactionController(TransactionService transactionService) {
+    private final TransactionMapper transactionMapper;
+
+    public TransactionController(TransactionService transactionService, AccountService accountService, TransactionMapper transactionMapper) {
         this.transactionService = transactionService;
+        this.accountService = accountService;
+        this.transactionMapper = transactionMapper;
     }
 
-    @PostMapping("")
-    public ResponseEntity<Transaction> createTransaction(@RequestBody Transaction transaction) {
-        try {
-            Transaction createdTransaction = transactionService.createTransaction(transaction);
-            return new ResponseEntity<>(createdTransaction, HttpStatus.CREATED);
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
-        }
+    @PostMapping
+    public ResponseEntity<TransactionDto> withdrawMoney(@RequestBody @Valid TransactionDto transactionDto) throws AccountNotFoundException {
+        Transaction transaction = transactionService.createTransaction(transactionDto);
+        TransactionDto newTransactionDto = transactionMapper.toDto(transaction);
+        return ResponseEntity.created(URI.create("/transactions/" + transaction.getId()))
+                .body(newTransactionDto);
     }
 
-    @GetMapping("")
-    public ResponseEntity<Page<Transaction>> getAllTransactions(@PageableDefault(size = 10, sort = "creationDate", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<Transaction> transactions = transactionService.getAllTransactions(pageable);
-        return new ResponseEntity<>(transactions, HttpStatus.OK);
+    @GetMapping
+    public List<TransactionDto> getTransactions(@PathVariable String accountId,
+                                                @RequestParam(required = false) BigDecimal minAmount,
+                                                @RequestParam(required = false) BigDecimal maxAmount,
+                                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+                                                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+                                                @RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "10") int size) {
+        List<Transaction> transactions = transactionService.getTransactions(accountId, minAmount, maxAmount, startDate, endDate, page, size);
+        return transactions.stream()
+                .map(transactionMapper::toDto)
+                .collect(Collectors.toList());
     }
-
 }
 
